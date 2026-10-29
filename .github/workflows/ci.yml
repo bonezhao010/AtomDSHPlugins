@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Syntax-check plugin modules
+        run: pnpm run check
+      - name: Validate package and locale JSON
+        run: |
+          for file in packages/*/package.json packages/*/locale/*.json; do
+            node -e "JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8'))" "$file"
+          done

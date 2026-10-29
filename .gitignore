@@ -1,0 +1,8 @@
+node_modules/
+.pnpm-store/
+.dev/
+.tmp-verify/
+tmp/
+*.log
+.DS_Store
+*.tsbuildinfo

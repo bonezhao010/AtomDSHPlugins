@@ -1,0 +1,46 @@
+{
+  "name": "dsh-collapse-workspaces",
+  "version": "0.1.0",
+  "description": "Collapse every expanded Workspace in the DeepSeek Harness sidebar with one click.",
+  "license": "MIT",
+  "type": "module",
+  "icon": "./icon.svg",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "workspace",
+    "sidebar"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "engines": {
+    "dsh": ">=0.2.2-alpha.2 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  }
+}

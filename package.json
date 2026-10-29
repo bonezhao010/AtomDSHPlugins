@@ -1,0 +1,15 @@
+{
+  "name": "atom-dsh-plugins",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Small, composable plugins for DeepSeek Harness.",
+  "license": "MIT",
+  "packageManager": "pnpm@11.28.5",
+  "engines": {
+    "node": ">=24.9.0"
+  },
+  "scripts": {
+    "check": "for f in packages/*/*.js; do node --check \"$f\" || exit 1; done && echo 'syntax ok'",
+    "list": "ls packages"
+  }
+}

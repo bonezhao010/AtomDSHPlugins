@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Collapse all workspaces",
+    "description": "Adds a Collapse all button beside the Workspaces search, view-options, and add-workspace controls, and folds every expanded Workspace."
+  }
+}
