@@ -11,7 +11,7 @@ installation granularity.
 
 | Package | What it does | Status |
 | --- | --- | --- |
-| [`dsh-collapse-workspaces`](packages/dsh-collapse-workspaces) | Adds a "Collapse all workspaces" button beside the search, view-options, and add-workspace controls in the Workspaces sidebar header, and folds every expanded Workspace. | WIP |
+| [`dsh-collapse-workspaces`](packages/dsh-collapse-workspaces) | Adds a "Collapse all workspaces" button beside the search, view-options, and add-workspace controls in the Workspaces sidebar header, and folds every expanded Workspace. | 0.1.0, verified on DSH 0.2.2-alpha.2 |
 
 ## Requirements
 
@@ -42,6 +42,8 @@ Each package is plain ESM JavaScript with no build step: edit `index.js` (Host h
 `client.js` (browser half), `cordis.patch.yml` (the bundle layer), `locale/*.json` (display
 metadata), and reload the page. Re-run `dsh plugin add` only when `package.json`,
 `cordis.patch.yml`, or the `files` list changes.
+
+`pnpm run check` syntax-checks every package module; CI runs it plus a JSON validation pass.
 
 Plugins that need a runtime dependency publish it under `dependencies`; DSH packages that must stay
 shared with the Host belong under `peerDependencies` and `devDependencies`, never
