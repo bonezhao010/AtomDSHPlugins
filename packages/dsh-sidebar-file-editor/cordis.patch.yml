@@ -1,0 +1,4 @@
+# One Host row per package. The browser half attaches through package.json "dsh.client".
+- insert:
+    - id: sidebar-file-editor
+      name: dsh-sidebar-file-editor

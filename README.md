@@ -12,6 +12,7 @@ installation granularity.
 | Package | What it does | Status |
 | --- | --- | --- |
 | [`dsh-collapse-workspaces`](packages/dsh-collapse-workspaces) | Adds a "Collapse all workspaces" button beside the search, view-options, and add-workspace controls in the Workspaces sidebar header, and folds every expanded Workspace. | 0.1.0, verified on DSH 0.2.2-alpha.2 |
+| [`dsh-sidebar-file-editor`](packages/dsh-sidebar-file-editor) | Opens editable text files from the right sidebar's Files view with CodeMirror 6, lazily loaded Prettier formatting, lightweight completion, and Save/Undo/Redo shortcuts. | 0.2.0, build-tested and live-slot verified on DSH 0.2.2-alpha.2 |
 
 ## Requirements
 
@@ -38,12 +39,16 @@ Then reload the Web page. Remove it with
 
 ## Development
 
-Each package is plain ESM JavaScript with no build step: edit `index.js` (Host half),
+Most packages are plain ESM JavaScript with no build step: edit `index.js` (Host half),
 `client.js` (browser half), `cordis.patch.yml` (the bundle layer), `locale/*.json` (display
 metadata), and reload the page. Re-run `dsh plugin add` only when `package.json`,
 `cordis.patch.yml`, or the `files` list changes.
 
-`pnpm run check` syntax-checks every package module; CI runs it plus a JSON validation pass.
+`dsh-sidebar-file-editor` is the exception: its browser entry lives in `src/client.js` and is
+bundled into the committed `client.js` (CodeMirror + Prettier). Run `pnpm install` after checkout
+and `pnpm run build` after editing that source; the generated `client.js` is what DSH serves.
+
+`pnpm run check` syntax-checks every published package module; CI runs it plus a JSON validation pass.
 
 Plugins that need a runtime dependency publish it under `dependencies`; DSH packages that must stay
 shared with the Host belong under `peerDependencies` and `devDependencies`, never

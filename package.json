@@ -9,7 +9,8 @@
     "node": ">=24.9.0"
   },
   "scripts": {
-    "check": "for f in packages/*/*.js; do node --check \"$f\" || exit 1; done && echo 'syntax ok'",
-    "list": "ls packages"
+    "check": "for f in packages/*/*.js packages/*/src/*.js packages/*/src/*/*.js packages/*/scripts/*.mjs; do node --check \"$f\" || exit 1; done && echo 'syntax ok'",
+    "list": "ls packages",
+    "build": "pnpm --filter dsh-sidebar-file-editor build"
   }
 }
