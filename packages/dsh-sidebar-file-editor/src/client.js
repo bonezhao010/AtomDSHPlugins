@@ -674,6 +674,34 @@ window.__ModuleLoader__.load({
 }
 .dsh-sfe-cm-host > .cm-editor { height: 100%; }
 .dsh-sfe-button.format { width: auto; padding: 0 8px; }
+/* Match the preview header's 28px tool buttons when this action is rendered outside our root. */
+.dsh-sfe-preview-action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  color: var(--dsw-alias-label-secondary);
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  border-radius: var(--dsw-radius-sm, 6px);
+  cursor: pointer;
+}
+.dsh-sfe-preview-action svg { width: 15px; height: 15px; }
+@media (hover: hover) {
+  .dsh-sfe-preview-action:hover {
+    color: var(--dsw-alias-label-primary);
+    background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-3));
+  }
+}
+.dsh-sfe-preview-action:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: -2px;
+}
 .dsh-sfe-empty {
   display: flex;
   flex: 1 1 auto;
@@ -964,10 +992,10 @@ window.__ModuleLoader__.load({
       return typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
     }
 
-    function Icon({ path, extra, size = 16 }) {
+    function Icon({ path, extra, size = 16, strokeWidth = 1.25 }) {
       return h('svg', {
         width: size, height: size, viewBox: '0 0 16 16', fill: 'none',
-        stroke: 'currentColor', strokeWidth: 1.25, strokeLinecap: 'round',
+        stroke: 'currentColor', strokeWidth, strokeLinecap: 'round',
         strokeLinejoin: 'round', 'aria-hidden': true,
       }, h('path', { d: path }), extra === undefined ? null : h('path', { d: extra }))
     }
@@ -982,7 +1010,8 @@ window.__ModuleLoader__.load({
     const RELOAD_TAIL = 'M13 3.5v4h-4'
     const FORMAT_ICON = 'M2.5 13.5 9 7l2.5 2.5-6.5 6.5h-3v-2.5Z'
     const FORMAT_EXTRA = 'M11.5 2.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6.6-1.4Z'
-    const EDIT_ICON = 'M2.5 13.5 9 7l2.5 2.5-6.5 6.5h-3v-2.5Z'
+    const EDIT_ICON = 'M4 10.8 11.1 3.7l2.2 2.2-7.1 7.1H4v-2.2Z'
+    const EDIT_UNDERLINE = 'M2.5 13.5h11'
     const PREVIEW_ICON = 'M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4S1.5 8 1.5 8Z'
     const PREVIEW_EXTRA = 'M8 6.3a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4Z'
 
@@ -1004,7 +1033,7 @@ window.__ModuleLoader__.load({
         className: 'dsh-sfe-title',
         title: dirty ? t('ariaDirty') : undefined,
       },
-      h('span', { className: 'dsh-sfe-title-editor', 'aria-hidden': true }, h(Icon, { path: EDIT_ICON, size: 12 })),
+      h('span', { className: 'dsh-sfe-title-editor', 'aria-hidden': true }, h(Icon, { path: EDIT_ICON, extra: EDIT_UNDERLINE, size: 12 })),
       dirty ? h('span', { className: 'dsh-sfe-title-dirty', 'aria-hidden': true }) : null,
       h('span', { className: 'dsh-sfe-title-name' }, basenameOfAddress(tab.contentId)))
     }
@@ -1021,11 +1050,12 @@ window.__ModuleLoader__.load({
       const label = t('editHint')
       return h('button', {
         type: 'button',
-        className: 'dsh-sfe-button',
+        className: 'dsh-sfe-preview-action',
         title: label,
         'aria-label': label,
+        'data-sidebar-file-editor-edit': '',
         onClick: () => openEditor(address),
-      }, h(Icon, { path: EDIT_ICON }))
+      }, h(Icon, { path: EDIT_ICON, extra: EDIT_UNDERLINE, size: 15, strokeWidth: 1.4 }))
     }
 
     function EditorBody({ useTabInfo, t, canPreview, openPreview }) {
