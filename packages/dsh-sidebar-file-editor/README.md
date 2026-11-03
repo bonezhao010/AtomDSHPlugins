@@ -1,9 +1,10 @@
 # dsh-sidebar-file-editor
 
-A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that turns text files
-in the right sidebar's workspace **Files** view into editable tabs. The editor is **CodeMirror 6**
-with syntax highlighting, Prettier formatting, and lightweight completion. Changes are saved back
-to the local workspace through authenticated Host routes.
+A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that keeps the
+right sidebar's built-in Markdown, code, and plain-text previews and adds an **Edit** action to
+them. Editing opens a **CodeMirror 6** tab with syntax highlighting, lazily loaded Prettier
+formatting, and lightweight completion. Changes are saved back to the local workspace through
+authenticated Host routes.
 
 ## Install
 
@@ -27,12 +28,17 @@ dsh plugin --profile <profile> remove dsh-sidebar-file-editor
 
 ## Use
 
-1. Open a Session whose workspace contains the file you want to edit.
-2. Open **Files** in the right sidebar and pick a text file.
-3. Edit it in the tab that opens. The tab keeps its buffer when you switch away.
+1. Open a Session whose workspace contains the file. Picking it in **Files** opens the original
+   read-only preview, including Markdown rendering and code/plain-text presentation.
+2. Click the pencil **Edit** action in the preview header. This opens the editor in a separate
+   right-sidebar tab and leaves the preview tab open.
+3. Edit it. The editor keeps its buffer when you switch away.
 4. Press **Save**, or use **Format** / `Shift+Alt+F` for languages Prettier supports.
-5. Closing a dirty editor tab asks for confirmation, and reloading or closing the page triggers the
-   browser's unload prompt.
+5. Click the eye **Preview** action in the editor toolbar to return to the read-only preview. The
+   editor tab and its unsaved buffer stay open, so you can switch back with **Edit** at any time.
+
+Closing a dirty editor tab asks for confirmation, and reloading or closing the page triggers the
+browser's unload prompt.
 
 Keyboard shortcuts work while the editor or its toolbar has focus:
 
@@ -44,8 +50,8 @@ Keyboard shortcuts work while the editor or its toolbar has focus:
 | Format document | `⇧⌥F` | `Shift+Alt+F` |
 
 Undo/redo use CodeMirror's history. The header buttons and keyboard shortcuts share that same
-history; saving or formatting a buffer does not reset it. The tab title shows a dot while the
-buffer differs from the file on disk.
+history; saving or formatting a buffer does not reset it. The editor tab title carries a pencil
+and shows a dot while the buffer differs from the file on disk.
 
 ## Editing features
 
@@ -98,14 +104,20 @@ Only the target file's language chunk is loaded. HTML/Vue script or style blocks
 fences are not formatted unless their own language chunk is already loaded; the lazy split favors
 page weight over embedded-language formatting.
 
-## What opens in the editor
+## Preview and editor tabs
 
-The plugin registers a new right-sidebar tab kind at the `extension` priority band for Session file
-addresses. It claims common text and source formats, including `.md`, `.txt`, `.json`, `.yaml`,
-`.toml`, `.js`, `.ts`, `.tsx`, `.jsx`, `.css`, `.html`, `.py`, `.go`, `.rs`, `.java`, `.sh`, `.sql`,
-`.xml`, `.svg`, `.csv`, `.env*`, and common extensionless names such as `Dockerfile`, `Makefile`,
-`LICENSE`, and `Cargo.lock`. Other files keep their normal viewer (images, PDFs, Office documents,
-and unsupported extensions are not claimed).
+The built-in preview remains the default for every file in **Files**. The plugin contributes the
+pencil **Edit** action to the preview header only for files it can edit and only when the file is
+inside the Session workspace. Common text and source formats are supported, including `.md`, `.txt`,
+`.json`, `.yaml`, `.toml`, `.js`, `.ts`, `.tsx`, `.jsx`, `.css`, `.html`, `.py`, `.go`, `.rs`,
+`.java`, `.sh`, `.sql`, `.xml`, `.svg`, `.csv`, `.env*`, and names such as `Dockerfile`, `Makefile`,
+`LICENSE`, and `Cargo.lock`. Images, PDFs, Office documents, binary files, and files outside the
+workspace do not get the Edit action.
+
+The editor is a separate tab kind and claims only addresses explicitly marked by that Edit action.
+This is what lets the shipped Markdown, code, and plain-text preview keep their normal behavior.
+The preview and editor use distinct tab identities for the same file, so switching between them
+does not close either tab or discard the editor buffer.
 
 ## How it works — and what it depends on
 
@@ -136,6 +148,10 @@ write goes through the two routes above. CodeMirror 6 is bundled into the main `
 into package-local chunks: a small shared core plus one parser/printer chunk per language family.
 They are fetched with the DSH module loader's `require.async` only on the first format of a
 language. The main page never downloads a formatter parser you have not used.
+
+The plugin also registers a document-preview header action through
+`ctx.slots.inject('sidebar.right.tab.document.actions')`. Opening a preview is still owned by the
+shipped document preview; the plugin only adds the pencil action and a marked editor address.
 
 ## Limits
 

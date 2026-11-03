@@ -472,6 +472,11 @@ window.__ModuleLoader__.load({
         formatting: 'Formatting…',
         formatted: 'Formatted',
         formatFailed: 'Formatting failed',
+        edit: 'Edit',
+        editHint: 'Edit this file in the sidebar',
+        preview: 'Preview',
+        previewHint: 'Open the read-only preview',
+        previewFailed: 'Preview failed',
         reload: 'Reload from disk',
         loading: 'Opening file…',
         retry: 'Retry',
@@ -497,6 +502,7 @@ window.__ModuleLoader__.load({
         errorFormatTooLarge: 'This file is too large to format (512 KB limit).',
         errorFormatChanged: 'The content changed while formatting; the result was not applied.',
         errorFormatFailed: 'Formatting failed.',
+        errorPreview: 'The read-only preview could not be opened.',
         conflictTitle: 'Save conflict',
         conflictBody: 'The file changed on disk. Reload to keep that version, or overwrite it with yours.',
         reloadAction: 'Reload',
@@ -519,6 +525,11 @@ window.__ModuleLoader__.load({
         formatting: '正在格式化…',
         formatted: '已格式化',
         formatFailed: '格式化失败',
+        edit: '编辑',
+        editHint: '在侧边栏中编辑此文件',
+        preview: '预览',
+        previewHint: '打开只读预览',
+        previewFailed: '预览失败',
         reload: '从磁盘重新加载',
         loading: '正在打开文件…',
         retry: '重试',
@@ -544,6 +555,7 @@ window.__ModuleLoader__.load({
         errorFormatTooLarge: '文件过大，无法格式化（上限 512 KB）。',
         errorFormatChanged: '格式化期间内容已更改，结果未应用。',
         errorFormatFailed: '格式化失败。',
+        errorPreview: '无法打开只读预览。',
         conflictTitle: '保存冲突',
         conflictBody: '文件已在磁盘上更改。重新加载以保留磁盘版本，或用你的版本覆盖。',
         reloadAction: '重新加载',
@@ -598,6 +610,7 @@ window.__ModuleLoader__.load({
 .dsh-sfe-actions { display: flex; flex: none; align-items: center; gap: 2px; }
 .dsh-sfe-button {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   gap: 4px;
@@ -708,6 +721,7 @@ window.__ModuleLoader__.load({
 .dsh-sfe-status[data-tone="error"] { color: var(--dsw-alias-state-error-primary); }
 .dsh-sfe-meta { flex: none; white-space: nowrap; }
 .dsh-sfe-title { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.dsh-sfe-title-editor { display: inline-flex; flex: none; color: var(--dsw-alias-label-secondary); }
 .dsh-sfe-title-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dsh-sfe-title-dirty { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--dsw-alias-state-warn-primary); }
 @container (max-width: 480px) {
@@ -745,6 +759,8 @@ window.__ModuleLoader__.load({
     ])
 
     const FILE_ADDRESS_PREFIX = 'dsh-resource://file/'
+    /** Query flag distinguishing an editor occurrence from the read-only preview. */
+    const EDIT_MARKER = 'sidebar-file-editor'
 
     /** Parse one file address without importing a Harness client package. */
     function parseFileAddress(address) {
@@ -770,22 +786,79 @@ window.__ModuleLoader__.load({
       return undefined
     }
 
+    /** Whether this address was opened specifically for the editor occurrence. */
+    function isEditorAddress(address) {
+      try {
+        return new URL(address).searchParams.get(EDIT_MARKER) === '1'
+      } catch {
+        return false
+      }
+    }
+
+    /** The original, unmarked file address for the read-only preview. */
+    function previewAddressOf(address) {
+      try {
+        const url = new URL(address)
+        url.searchParams.delete(EDIT_MARKER)
+        if ([...url.searchParams.keys()].length === 0) url.search = ''
+        return url.href
+      } catch {
+        return address
+      }
+    }
+
     function basenameOfAddress(address) {
       const file = parseFileAddress(address)
       const name = file?.path.slice(file.path.lastIndexOf('/') + 1) ?? ''
       return name === '' ? address : name
     }
 
-    /** Whether the Files tree should route this address into the editor. */
-    function canOpen(address) {
-      const file = parseFileAddress(address)
-      if (file === undefined || file.scope !== 'session' || file.path.length === 0) return false
-      const name = file.path.slice(file.path.lastIndexOf('/') + 1).toLowerCase()
+    /** Whether the path's name/extension is one this editor can present. */
+    function isEditablePath(path) {
+      if (typeof path !== 'string' || path.length === 0) return false
+      const normalized = path.replace(/\\/g, '/')
+      const name = normalized.slice(normalized.lastIndexOf('/') + 1).toLowerCase()
       if (name === '') return false
       if (EDITABLE_NAMES.has(name) || name.startsWith('.env')) return true
       const dot = name.lastIndexOf('.')
       if (dot <= 0) return false
       return EDITABLE_EXTENSIONS.has(name.slice(dot + 1))
+    }
+
+    /** Whether this address is our explicitly opened editor occurrence. */
+    function canOpen(address) {
+      if (!isEditorAddress(address)) return false
+      const file = parseFileAddress(address)
+      if (file === undefined || file.scope !== 'session' || file.path.length === 0) return false
+      return isEditablePath(file.path)
+    }
+
+    function normalizeHostPath(value) {
+      return String(value).replace(/\\/g, '/').replace(/\/+$/, '')
+    }
+
+    /** Whether a Host absolute path is inside the Session workspace root. */
+    function isPathInsideWorkspace(cwd, absolutePath) {
+      if (typeof cwd !== 'string' || cwd === '' || typeof absolutePath !== 'string') return false
+      const root = normalizeHostPath(cwd)
+      const target = normalizeHostPath(absolutePath)
+      if (target === '' || target === root) return false
+      if (root === '') return target.startsWith('/')
+      const windows = /^[A-Za-z]:\//.test(root)
+      const comparableRoot = windows ? root.toLowerCase() : root
+      const comparableTarget = windows ? target.toLowerCase() : target
+      return comparableTarget.startsWith(`${comparableRoot}/`)
+    }
+
+    /** Build the explicit editor address for a previewed workspace file. */
+    function editorAddressFor(sessionId, cwd, absolutePath) {
+      if (!isPathInsideWorkspace(cwd, absolutePath)) return undefined
+      const root = normalizeHostPath(cwd)
+      const target = normalizeHostPath(absolutePath)
+      const relative = root === '' ? target.replace(/^\/+/, '') : target.slice(root.length + 1)
+      if (relative === '') return undefined
+      const encodedPath = relative.split('/').map(segment => encodeURIComponent(segment)).join('/')
+      return `${FILE_ADDRESS_PREFIX}session/${encodeURIComponent(sessionId)}/${encodedPath}?${EDIT_MARKER}=1`
     }
 
     // One shared dirty set feeds the tab-title dot and the unload guard. The
@@ -867,6 +940,7 @@ window.__ModuleLoader__.load({
       'editor/format-too-large': 'errorFormatTooLarge',
       'editor/format-changed': 'errorFormatChanged',
       'editor/format-failed': 'errorFormatFailed',
+      'editor/preview-failed': 'errorPreview',
       'editor/editor-init': 'errorUnknown',
     }
 
@@ -908,6 +982,9 @@ window.__ModuleLoader__.load({
     const RELOAD_TAIL = 'M13 3.5v4h-4'
     const FORMAT_ICON = 'M2.5 13.5 9 7l2.5 2.5-6.5 6.5h-3v-2.5Z'
     const FORMAT_EXTRA = 'M11.5 2.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6.6-1.4Z'
+    const EDIT_ICON = 'M2.5 13.5 9 7l2.5 2.5-6.5 6.5h-3v-2.5Z'
+    const PREVIEW_ICON = 'M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4S1.5 8 1.5 8Z'
+    const PREVIEW_EXTRA = 'M8 6.3a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4Z'
 
     function IconButton({ label, hint, disabled, onClick, path, extra }) {
       return h('button', {
@@ -927,11 +1004,31 @@ window.__ModuleLoader__.load({
         className: 'dsh-sfe-title',
         title: dirty ? t('ariaDirty') : undefined,
       },
+      h('span', { className: 'dsh-sfe-title-editor', 'aria-hidden': true }, h(Icon, { path: EDIT_ICON, size: 12 })),
       dirty ? h('span', { className: 'dsh-sfe-title-dirty', 'aria-hidden': true }) : null,
       h('span', { className: 'dsh-sfe-title-name' }, basenameOfAddress(tab.contentId)))
     }
 
-    function EditorBody({ useTabInfo, t }) {
+    /**
+     * The preview header's entry into edit mode. It appears only for a file
+     * the editor can load that is inside the Session workspace.
+     */
+    function EditInPreviewAction({ absolutePath, sessionId, useSessions, t, openEditor }) {
+      const cwd = useSessions(state => state.byId[sessionId]?.cwd)
+      if (!isEditablePath(absolutePath) || !isPathInsideWorkspace(cwd, absolutePath)) return null
+      const address = editorAddressFor(sessionId, cwd, absolutePath)
+      if (address === undefined) return null
+      const label = t('editHint')
+      return h('button', {
+        type: 'button',
+        className: 'dsh-sfe-button',
+        title: label,
+        'aria-label': label,
+        onClick: () => openEditor(address),
+      }, h(Icon, { path: EDIT_ICON }))
+    }
+
+    function EditorBody({ useTabInfo, t, canPreview, openPreview }) {
       const { tab } = useTabInfo()
       const file = useMemo(() => parseFileAddress(tab.contentId), [tab.contentId])
       const parser = useMemo(() => file === undefined ? undefined : formatParserForPath(file.path), [file])
@@ -1160,6 +1257,15 @@ window.__ModuleLoader__.load({
         }
       }, [file, parser, phase, tab.signal])
 
+      const previewDocument = useCallback(() => {
+        if (typeof canPreview !== 'function' || !canPreview()) return
+        try {
+          openPreview(previewAddressOf(tab.contentId))
+        } catch (cause) {
+          setError({ code: 'editor/preview-failed', message: cause instanceof Error ? cause.message : String(cause) })
+        }
+      }, [canPreview, openPreview, tab.contentId])
+
       const reload = useCallback(() => {
         if (busyRef.current) return
         if (dirtyRef.current && !window.confirm(t('confirmDiscard'))) return
@@ -1200,13 +1306,16 @@ window.__ModuleLoader__.load({
       const redoLabel = isMac() ? '⇧⌘Z' : 'Ctrl+Shift+Z'
       const displayPath = absolutePath ?? file?.path ?? ''
       const sizeLabel = formatBytes(bytes)
+      const previewAvailable = typeof canPreview === 'function' && canPreview()
       const formatHint = parser === undefined
         ? t('formatUnsupportedHint')
         : t('formatHint', { shortcut: 'Shift+Alt+F' })
       let statusKey = 'upToDate'
       let statusTone = 'idle'
       if (error !== undefined) {
-        statusKey = error.code.startsWith('editor/format') ? 'formatFailed' : 'saveFailed'
+        statusKey = error.code.startsWith('editor/format')
+          ? 'formatFailed'
+          : error.code === 'editor/preview-failed' ? 'previewFailed' : 'saveFailed'
         statusTone = 'error'
       } else if (conflict) {
         statusKey = 'conflict'
@@ -1254,6 +1363,14 @@ window.__ModuleLoader__.load({
             disabled: busy || phase !== 'ready',
             onClick: () => { void formatDocument() },
           }, h(Icon, { path: FORMAT_ICON, extra: FORMAT_EXTRA }), h('span', null, t('format'))),
+          previewAvailable ? h(IconButton, {
+            label: t('preview'),
+            hint: t('previewHint'),
+            disabled: busy || phase !== 'ready',
+            onClick: previewDocument,
+            path: PREVIEW_ICON,
+            extra: PREVIEW_EXTRA,
+          }) : null,
           h(IconButton, {
             label: t('undo'),
             hint: t('undoHint', { shortcut: `${modLabel}Z` }),
@@ -1340,12 +1457,25 @@ window.__ModuleLoader__.load({
           name: 'sidebar.right.pane.tab',
           key: ID,
           locale: NS,
+          inject: () => ({
+            canPreview: () => ctx.sidebarRightTabs.get('text') !== undefined,
+            openPreview: address => { ctx.sidebarRight.openResource(address, { kind: 'text' }) },
+          }),
         }, EditorBody)), 'sidebar-file-editor: body')
         ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
           name: 'sidebar.right.pane.tab.title',
           key: ID,
           locale: NS,
         }, EditorTitle)), 'sidebar-file-editor: title')
+        ctx.effect(() => ctx.slots.inject('sidebar.right.tab.document.actions', () => ctx.slots.register({
+          name: 'sidebar.right.tab.document.actions',
+          id: 'sidebar-file-editor.edit',
+          order: -10,
+          locale: NS,
+          inject: () => ({
+            openEditor: address => { ctx.sidebarRight.openResource(address, { kind: KIND }) },
+          }),
+        }, EditInPreviewAction)), 'sidebar-file-editor: preview edit action')
         ctx.effect(() => ctx.sidebarRight.registerCloseHandler(KIND, (_sessionId, tab) => {
           if (!dirtyTabs.has(tab.id)) return
           if (!window.confirm(t('confirmClose'))) throw new Error('sidebar-file-editor: unsaved changes')

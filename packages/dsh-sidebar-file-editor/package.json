@@ -1,7 +1,7 @@
 {
   "name": "dsh-sidebar-file-editor",
-  "version": "0.2.0",
-  "description": "Edit workspace text files in the DeepSeek Harness right sidebar with CodeMirror, Prettier formatting, basic completion, and Save/Undo/Redo shortcuts.",
+  "version": "0.2.1",
+  "description": "Keep the built-in workspace file preview and add an Edit action that opens a CodeMirror editor with lazy Prettier formatting, completion, and Save/Undo/Redo shortcuts.",
   "license": "MIT",
   "type": "module",
   "icon": "./icon.svg",
@@ -48,7 +48,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-sidebar-right",
-        "@deepseek-ai/dsh-client-ui-sidebar-files"
+        "@deepseek-ai/dsh-client-ui-sidebar-files",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview"
       ]
     }
   },

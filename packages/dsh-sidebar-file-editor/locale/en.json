@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Sidebar file editor",
-    "description": "Edit and save workspace text files in the right sidebar with CodeMirror highlighting, Prettier formatting, basic completion, and Save, Undo, and Redo shortcuts."
+    "description": "Keep the built-in Markdown, code, and plain-text preview, then use its Edit action for a CodeMirror editor with lazy Prettier formatting, basic completion, and Save/Undo/Redo shortcuts."
   }
 }

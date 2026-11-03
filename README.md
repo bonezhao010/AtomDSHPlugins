@@ -12,7 +12,7 @@ installation granularity.
 | Package | What it does | Status |
 | --- | --- | --- |
 | [`dsh-collapse-workspaces`](packages/dsh-collapse-workspaces) | Adds a "Collapse all workspaces" button beside the search, view-options, and add-workspace controls in the Workspaces sidebar header, and folds every expanded Workspace. | 0.1.0, verified on DSH 0.2.2-alpha.2 |
-| [`dsh-sidebar-file-editor`](packages/dsh-sidebar-file-editor) | Opens editable text files from the right sidebar's Files view with CodeMirror 6, lazily loaded Prettier formatting, lightweight completion, and Save/Undo/Redo shortcuts. | 0.2.0, build-tested and live-slot verified on DSH 0.2.2-alpha.2 |
+| [`dsh-sidebar-file-editor`](packages/dsh-sidebar-file-editor) | Keeps the built-in Markdown, code, and plain-text previews and adds an Edit action that opens a CodeMirror 6 editor with lazily loaded Prettier formatting, lightweight completion, and Save/Undo/Redo shortcuts. | 0.2.1, build-tested and live-slot verified on DSH 0.2.2-alpha.2 |
 
 ## Requirements
 
