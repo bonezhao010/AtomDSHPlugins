@@ -30,12 +30,13 @@ dsh plugin --profile <profile> remove dsh-sidebar-file-editor
 
 1. Open a Session whose workspace contains the file. Picking it in **Files** opens the original
    read-only preview, including Markdown rendering and code/plain-text presentation.
-2. Click the pencil **Edit** action in the preview header. This opens the editor in a separate
-   right-sidebar tab and leaves the preview tab open.
-3. Edit it. The editor keeps its buffer when you switch away.
-4. Press **Save**, or use **Format** / `Shift+Alt+F` for languages Prettier supports.
-5. Click the eye **Preview** action in the editor toolbar to return to the read-only preview. The
-   editor tab and its unsaved buffer stay open, so you can switch back with **Edit** at any time.
+2. Click the pencil **Edit** action in the preview header. The **same tab switches to edit mode**;
+   no second tab is opened.
+3. Edit it. Press **Save**, or use **Format** / `Shift+Alt+F` for languages Prettier supports.
+4. Click the eye **Preview** action in the editor toolbar to switch the same tab back to the
+   read-only preview.
+5. If the editor has unsaved changes, switching to preview asks whether to save first. Only one tab
+   exists for the file throughout the preview/edit cycle.
 
 Closing a dirty editor tab asks for confirmation, and reloading or closing the page triggers the
 browser's unload prompt.
@@ -114,10 +115,15 @@ inside the Session workspace. Common text and source formats are supported, incl
 `LICENSE`, and `Cargo.lock`. Images, PDFs, Office documents, binary files, and files outside the
 workspace do not get the Edit action.
 
-The editor is a separate tab kind and claims only addresses explicitly marked by that Edit action.
-This is what lets the shipped Markdown, code, and plain-text preview keep their normal behavior.
-The preview and editor use distinct tab identities for the same file, so switching between them
-does not close either tab or discard the editor buffer.
+The editor is a separate tab kind internally and claims only addresses explicitly marked by that
+Edit action. This is what lets the shipped Markdown, code, and plain-text preview keep their normal
+behavior. When Edit or Preview is used, the current tab is replaced in its strip slot, so one file
+has one tab and only its mode changes. If the other mode happens to be open already, the current
+tab is closed and the existing mode is revealed instead of adding a duplicate.
+
+Switching from editor to preview with unsaved changes asks to save first; the shipped preview reads
+from disk, so saving is what makes the preview show the current content. If the save is canceled or
+fails, the editor stays open. Closing a dirty editor tab directly still asks for confirmation.
 
 ## How it works — and what it depends on
 

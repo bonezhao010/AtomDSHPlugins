@@ -1,7 +1,7 @@
 {
   "name": "dsh-sidebar-file-editor",
-  "version": "0.2.1",
-  "description": "Keep the built-in workspace file preview and add an Edit action that opens a CodeMirror editor with lazy Prettier formatting, completion, and Save/Undo/Redo shortcuts.",
+  "version": "0.2.2",
+  "description": "Keep the built-in workspace file preview and toggle the same right-sidebar tab between preview and a CodeMirror editor with lazy Prettier formatting, completion, and Save/Undo/Redo shortcuts.",
   "license": "MIT",
   "type": "module",
   "icon": "./icon.svg",

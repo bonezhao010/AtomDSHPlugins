@@ -441,6 +441,7 @@ window.__ModuleLoader__.load({
 
     const ID = 'dsh-sidebar-file-editor'
     const KIND = 'sidebar-file-editor'
+    const UNSAVED_CLOSE_REASON = 'sidebar-file-editor: unsaved changes'
     const NS = 'sidebarFileEditor'
     const OPEN_PATH = '/api/sidebar-file-editor.open'
     const SAVE_PATH = '/api/sidebar-file-editor.save'
@@ -477,6 +478,7 @@ window.__ModuleLoader__.load({
         preview: 'Preview',
         previewHint: 'Open the read-only preview',
         previewFailed: 'Preview failed',
+        saveBeforePreview: 'Save changes before opening the preview?',
         reload: 'Reload from disk',
         loading: 'Opening file…',
         retry: 'Retry',
@@ -530,6 +532,7 @@ window.__ModuleLoader__.load({
         preview: '预览',
         previewHint: '打开只读预览',
         previewFailed: '预览失败',
+        saveBeforePreview: '打开预览前保存当前更改？',
         reload: '从磁盘重新加载',
         loading: '正在打开文件…',
         retry: '重试',
@@ -1054,11 +1057,11 @@ window.__ModuleLoader__.load({
         title: label,
         'aria-label': label,
         'data-sidebar-file-editor-edit': '',
-        onClick: () => openEditor(address),
+        onClick: () => openEditor(sessionId, address),
       }, h(Icon, { path: EDIT_ICON, extra: EDIT_UNDERLINE, size: 15, strokeWidth: 1.4 }))
     }
 
-    function EditorBody({ useTabInfo, t, canPreview, openPreview }) {
+    function EditorBody({ useTabInfo, t, sessionId, canPreview, openPreview }) {
       const { tab } = useTabInfo()
       const file = useMemo(() => parseFileAddress(tab.contentId), [tab.contentId])
       const parser = useMemo(() => file === undefined ? undefined : formatParserForPath(file.path), [file])
@@ -1207,10 +1210,10 @@ window.__ModuleLoader__.load({
       const redoAction = useCallback(() => { editorRef.current?.redo() }, [])
 
       const save = useCallback(async (force = false) => {
-        if (busyRef.current || phase !== 'ready' || file === undefined) return
-        if (!force && !dirtyRef.current) return
+        if (busyRef.current || phase !== 'ready' || file === undefined) return false
+        if (!force && !dirtyRef.current) return false
         const session = editorRef.current
-        if (session === undefined) return
+        if (session === undefined) return false
         const contentDoc = session.getDoc()
         const content = session.getText().replace(/\n/g, eolRef.current)
         busyRef.current = true
@@ -1227,7 +1230,7 @@ window.__ModuleLoader__.load({
           if (force) payload.force = true
           else payload.expectedVersion = versionRef.current
           const data = await requestJson(SAVE_PATH, payload, tab.signal)
-          if (tab.signal.aborted || !mountedRef.current) return
+          if (tab.signal.aborted || !mountedRef.current) return false
           versionRef.current = data.version
           setBytes(data.bytes)
           savedDocRef.current = contentDoc
@@ -1237,8 +1240,9 @@ window.__ModuleLoader__.load({
           setConflict(false)
           if (stillDirty) setNotice(undefined)
           else setNotice('saved')
+          return !stillDirty
         } catch (cause) {
-          if (tab.signal.aborted || !mountedRef.current) return
+          if (tab.signal.aborted || !mountedRef.current) return false
           const next = toEditorError(cause)
           if (next.code === 'editor/stale') {
             setConflict(true)
@@ -1247,6 +1251,7 @@ window.__ModuleLoader__.load({
             setError(next)
             setNotice(undefined)
           }
+          return false
         } finally {
           busyRef.current = false
           if (mountedRef.current) setBusyKind(undefined)
@@ -1287,14 +1292,22 @@ window.__ModuleLoader__.load({
         }
       }, [file, parser, phase, tab.signal])
 
-      const previewDocument = useCallback(() => {
+      const previewDocument = useCallback(async () => {
         if (typeof canPreview !== 'function' || !canPreview()) return
+        if (dirtyRef.current) {
+          if (!window.confirm(t('saveBeforePreview'))) return
+          if (!await save(false)) return
+        }
+        // The tab is about to be replaced cleanly; clear the close guard first
+        // so it cannot ask a second time for changes that were just saved.
+        markDirty(tab.id, false)
         try {
-          openPreview(previewAddressOf(tab.contentId))
+          openPreview(sessionId, previewAddressOf(tab.contentId), tab.id)
         } catch (cause) {
+          if (cause instanceof Error && cause.message === UNSAVED_CLOSE_REASON) return
           setError({ code: 'editor/preview-failed', message: cause instanceof Error ? cause.message : String(cause) })
         }
-      }, [canPreview, openPreview, tab.contentId])
+      }, [canPreview, openPreview, save, sessionId, tab.contentId, tab.id, t])
 
       const reload = useCallback(() => {
         if (busyRef.current) return
@@ -1397,7 +1410,7 @@ window.__ModuleLoader__.load({
             label: t('preview'),
             hint: t('previewHint'),
             disabled: busy || phase !== 'ready',
-            onClick: previewDocument,
+            onClick: () => { void previewDocument() },
             path: PREVIEW_ICON,
             extra: PREVIEW_EXTRA,
           }) : null,
@@ -1472,6 +1485,44 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'sidebarRight', 'sidebarRightTabs'],
       apply(ctx) {
         const t = ctx.locale.bind(NS)
+
+        /** Find the other half of one file's preview/editor pair. */
+        function findModeTab(sessionId, kind, contentId) {
+          return ctx.sidebarRight.openTabs.getSnapshot().find(tab => (
+            tab.sessionId === sessionId && tab.kind === kind && tab.contentId === contentId
+          ))
+        }
+
+        /**
+         * Replace the current tab with the other mode in the same strip slot.
+         * When the other mode is already open, close this one and reveal it so
+         * repeated mode switches never accumulate two tabs for one file.
+         */
+        function switchMode(sessionId, sourceTabId, targetAddress, targetKind) {
+          const target = findModeTab(sessionId, targetKind, targetAddress)
+          if (target !== undefined && target.tabId !== sourceTabId) {
+            if (sourceTabId !== undefined) ctx.sidebarRight.closeIn(sessionId, sourceTabId)
+            ctx.sidebarRight.openResourceIn(sessionId, targetAddress, { kind: targetKind })
+            return
+          }
+          ctx.sidebarRight.openResourceIn(sessionId, targetAddress, {
+            kind: targetKind,
+            ...(sourceTabId === undefined ? {} : { replaceTab: sourceTabId }),
+          })
+        }
+
+        /** Locate the preview tab that owns an edit action, preferring the exact address. */
+        function previewSourceFor(sessionId, editorAddress) {
+          const previewAddress = previewAddressOf(editorAddress)
+          const exact = findModeTab(sessionId, 'text', previewAddress)
+          if (exact !== undefined) return exact.tabId
+          const active = ctx.sidebarRight.active()
+          // The action lives in the visible preview; its address can differ by
+          // query or relative/absolute spelling, so the active text tab is a
+          // safe source fallback for an in-place switch.
+          return active?.kind === 'text' ? active.id : undefined
+        }
+
         ctx.effect(() => ctx.locale.register(NS, DICTIONARIES), 'sidebar-file-editor: dictionaries')
         ctx.effect(() => ctx.sidebarRightTabs.register({
           id: ID,
@@ -1489,7 +1540,7 @@ window.__ModuleLoader__.load({
           locale: NS,
           inject: () => ({
             canPreview: () => ctx.sidebarRightTabs.get('text') !== undefined,
-            openPreview: address => { ctx.sidebarRight.openResource(address, { kind: 'text' }) },
+            openPreview: (sessionId, address, sourceTabId) => switchMode(sessionId, sourceTabId, address, 'text'),
           }),
         }, EditorBody)), 'sidebar-file-editor: body')
         ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
@@ -1503,12 +1554,14 @@ window.__ModuleLoader__.load({
           order: -10,
           locale: NS,
           inject: () => ({
-            openEditor: address => { ctx.sidebarRight.openResource(address, { kind: KIND }) },
+            openEditor: (sessionId, address) => {
+              switchMode(sessionId, previewSourceFor(sessionId, address), address, KIND)
+            },
           }),
         }, EditInPreviewAction)), 'sidebar-file-editor: preview edit action')
         ctx.effect(() => ctx.sidebarRight.registerCloseHandler(KIND, (_sessionId, tab) => {
           if (!dirtyTabs.has(tab.id)) return
-          if (!window.confirm(t('confirmClose'))) throw new Error('sidebar-file-editor: unsaved changes')
+          if (!window.confirm(t('confirmClose'))) throw new Error(UNSAVED_CLOSE_REASON)
         }), 'sidebar-file-editor: close guard')
 
         ctx.effect(() => {

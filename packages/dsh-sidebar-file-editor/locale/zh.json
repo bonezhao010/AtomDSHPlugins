@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "侧边栏文件编辑器",
-    "description": "保留工作区文件的 Markdown、代码和纯文本预览，在预览工具栏点“编辑”进入 CodeMirror 编辑器，支持按语言懒加载的 Prettier 格式化、基础自动联想以及保存、撤销和重做快捷键。"
+    "description": "保留工作区文件的 Markdown、代码和纯文本预览，并在同一个标签页中切换到 CodeMirror 编辑器；支持按语言懒加载的 Prettier 格式化以及保存、撤销和重做快捷键。"
   }
 }
